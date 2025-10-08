@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generador Masivo de QR - Pokémon ID</title>
+    <title>Generador Masivo de QR - Pokémon ID para Imprimir</title>
     <!-- Carga de Tailwind CSS para diseño moderno y responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Fuente Pixel Art -->
@@ -12,7 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     
     <style>
-        /* Estilos personalizados para el look and feel "Pixel Art" */
+        /* ==================================== */
+        /* Estilos de la Interfaz (Pantalla) */
+        /* ==================================== */
         body {
             font-family: 'Press Start 2P', cursive;
             background-color: #0d1a26; /* Azul oscuro de Pokédex */
@@ -75,15 +77,11 @@
             opacity: 0.6;
         }
 
-        .btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
         #qrDisplay {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 10px;
-            max-height: 500px; /* Limitar la altura para evitar sobrecarga */
+            max-height: 500px; 
             overflow-y: auto;
             background-color: #e0e0e0;
             padding: 10px;
@@ -108,7 +106,6 @@
             margin-top: 5px;
         }
 
-        /* Estilo para el input de texto */
         #inputNumber {
             background-color: #fff;
             color: #333;
@@ -120,7 +117,6 @@
             width: 100%;
         }
 
-        /* Estilos de carga */
         #loading {
             color: #ffde00;
             text-shadow: 1px 1px #333;
@@ -128,6 +124,65 @@
             margin-top: 20px;
             font-size: 0.8rem;
         }
+
+        /* ==================================== */
+        /* Estilos de Impresión (PDF/Papel) */
+        /* ==================================== */
+        @media print {
+            body {
+                background: none; /* Eliminar el fondo */
+                padding: 0;
+            }
+            .container-box {
+                border: none;
+                box-shadow: none;
+                background: none;
+                width: 100%;
+                max-width: none;
+                padding: 0;
+            }
+            .pokedex-screen {
+                border: none;
+                padding: 0;
+                margin-bottom: 0;
+                background: none;
+            }
+            /* Ocultar todos los controles, mensajes y títulos */
+            .controls-area, #loading, #statusMessage, h1, h2 {
+                display: none;
+            }
+            
+            /* El contenedor de QR se convierte en la única cosa visible, sin scroll */
+            #qrDisplay {
+                display: grid;
+                /* Crear una cuadrícula densa para aprovechar el papel */
+                grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); 
+                gap: 5px; /* Espacio más pequeño para ahorrar papel */
+                overflow: visible; /* Permitir que ocupe todo el espacio de la página */
+                max-height: none;
+                background-color: transparent;
+                border: none;
+                padding: 0;
+            }
+            
+            .qr-item {
+                padding: 2px;
+                box-shadow: none;
+                border: 1px solid #ccc; /* Borde sutil para recortar */
+                border-radius: 2px;
+            }
+            
+            /* Asegurar que el QR sea pequeño para que quepan muchos */
+            .qr-item canvas, .qr-item img {
+                width: 60px !important;
+                height: 60px !important;
+            }
+            
+            .qr-item p {
+                font-size: 8px;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -135,8 +190,8 @@
     <div class="container-box">
         <h1>GENERADOR QR - POKÉDEX ID</h1>
         
-        <!-- Controles de Generación -->
-        <div class="pokedex-screen flex flex-col space-y-4">
+        <!-- Área de Controles de Generación -->
+        <div class="pokedex-screen flex flex-col space-y-4 controls-area">
             
             <!-- Generador Individual -->
             <div class="flex flex-col sm:flex-row gap-2">
@@ -156,7 +211,8 @@
             <!-- Generador Masivo y Descarga -->
             <div class="flex flex-col sm:flex-row gap-2 justify-between">
                 <button id="generateAllBtn" class="btn flex-grow">GENERAR 1025 QR</button>
-                <button id="downloadBtn" class="btn flex-grow" disabled>DESCARGAR (Simulación)</button>
+                <!-- Botón para imprimir planilla -->
+                <button id="printPlanillaBtn" class="btn flex-grow" disabled>🖨️ IMPRIMIR PLANILLA</button>
             </div>
             
             <!-- Mensajes de Estado -->
@@ -168,11 +224,11 @@
             </div>
         </div>
         
-        <!-- Contenedor de Visualización de QR Masivos -->
-        <h2 class="text-white text-sm my-4 text-center">Vista Previa de Códigos Generados:</h2>
+        <!-- Contenedor de Visualización de QR Masivos / Planilla de Impresión -->
+        <h2 class="text-white text-sm my-4 text-center">Vista Previa de Códigos Generados (Scroll):</h2>
         <div id="qrDisplay" class="pokedex-screen">
             <p class="text-center text-gray-700 col-span-full font-sans text-xs">
-                Aquí aparecerán los códigos QR. Usa la generación masiva o individual.
+                Haz clic en "GENERAR 1025 QR" para crear la planilla.
             </p>
         </div>
 
@@ -188,7 +244,7 @@
         const inputNumber = document.getElementById('inputNumber');
         const generateSingleBtn = document.getElementById('generateSingleBtn');
         const generateAllBtn = document.getElementById('generateAllBtn');
-        const downloadBtn = document.getElementById('downloadBtn');
+        const printPlanillaBtn = document.getElementById('printPlanillaBtn'); // Nuevo botón de impresión
         const loading = document.getElementById('loading');
         const statusMessage = document.getElementById('statusMessage');
         const singleQrContainer = document.getElementById('singleQrContainer');
@@ -200,15 +256,15 @@
          * @param {number} id - El ID del Pokémon (contenido del QR).
          * @param {HTMLElement} container - El contenedor donde se renderizará el QR.
          */
-        function generateQrCode(id, container) {
+        function generateQrCode(id, container, size = 100) {
             // Limpiar el contenedor antes de generar un nuevo QR
             container.innerHTML = ''; 
             
             // Crea una instancia de QRCode
             new QRCode(container, {
                 text: String(id), // El contenido del QR es el ID del Pokémon
-                width: 100,
-                height: 100,
+                width: size,
+                height: size,
                 colorDark: "#000000",
                 colorLight: "#ffffff",
                 correctLevel: QRCode.CorrectLevel.H // Alto nivel de corrección de errores
@@ -230,9 +286,9 @@
             
             statusMessage.textContent = '';
             
-            // Mostrar QR individual
+            // Mostrar QR individual en el contenedor superior
             singleQrContainer.style.display = 'flex';
-            generateQrCode(id, singleQrCode);
+            generateQrCode(id, singleQrCode, 100);
             singleQrLabel.textContent = `ID: ${id}`;
             
             // Mostrar también en el visor principal (reemplazando lo que haya)
@@ -240,14 +296,17 @@
             const item = document.createElement('div');
             item.className = 'qr-item';
             
-            // El contenedor del QR es el propio item
-            generateQrCode(id, item);
+            // Generar QR dentro del item del display principal
+            generateQrCode(id, item, 100);
 
             const p = document.createElement('p');
             p.textContent = `ID #${id}`;
             item.appendChild(p);
             
             qrDisplay.appendChild(item);
+            
+            // Deshabilitar la impresión si solo se genera 1
+            printPlanillaBtn.disabled = true;
         });
 
         /**
@@ -258,7 +317,7 @@
             // Deshabilitar botones e iniciar estado de carga
             generateAllBtn.disabled = true;
             generateSingleBtn.disabled = true;
-            downloadBtn.disabled = true;
+            printPlanillaBtn.disabled = true;
             qrDisplay.innerHTML = '';
             singleQrContainer.style.display = 'none';
             loading.classList.remove('hidden');
@@ -275,10 +334,10 @@
                     if (id > MAX_ID) {
                         // Terminó la generación
                         loading.classList.add('hidden');
-                        statusMessage.textContent = `✅ Generación completa: ${MAX_ID} códigos generados.`;
-                        downloadBtn.disabled = false;
+                        statusMessage.textContent = `✅ Generación completa: ${MAX_ID} códigos generados. ¡Listo para imprimir!`;
                         generateAllBtn.disabled = false;
                         generateSingleBtn.disabled = false;
+                        printPlanillaBtn.disabled = false; // Habilitar el botón de impresión
                         return;
                     }
 
@@ -287,8 +346,8 @@
                     item.className = 'qr-item';
                     
                     // 2. Generar y renderizar el código QR directamente en el item
-                    // Nota: generateQrCode crea un <div> dentro del 'item'.
-                    generateQrCode(id, item);
+                    // Usamos un tamaño más pequeño para que quepan más en la pantalla y la impresión
+                    generateQrCode(id, item, 80); 
 
                     const p = document.createElement('p');
                     p.textContent = `ID #${id}`;
@@ -309,31 +368,15 @@
         });
 
         /**
-         * Simula la descarga del paquete ZIP con todos los códigos QR.
+         * Llama a la función de impresión del navegador
          */
-        downloadBtn.addEventListener('click', () => {
-            // NOTA: Esta es una simulación de descarga. 
-            
-            downloadBtn.disabled = true;
-            statusMessage.textContent = 'Simulando creación y descarga del ZIP (1025 archivos)...';
-
-            setTimeout(() => {
-                // Crear un blob de datos simulado
-                const fakeBlob = new Blob(["Simulación de archivo ZIP de 1025 QRs"], { type: "application/zip" });
-                const url = URL.createObjectURL(fakeBlob);
-                
-                // Crea un enlace de descarga
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "pokedex_qr_codes_1-1025.zip";
-                document.body.appendChild(a);
-                a.click(); // Disparar la descarga
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                statusMessage.textContent = '🎉 Descarga iniciada (Simulación de ZIP de QRs).';
-                downloadBtn.disabled = false;
-            }, 2000);
+        printPlanillaBtn.addEventListener('click', () => {
+            if (qrDisplay.children.length === 0 || 
+                (qrDisplay.children.length === 1 && qrDisplay.firstElementChild.tagName === 'P')) {
+                statusMessage.textContent = '⚠️ Genera los 1025 códigos primero.';
+                return;
+            }
+            window.print();
         });
         
     </script>
