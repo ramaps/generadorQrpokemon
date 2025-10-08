@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador Masivo de QR - Pokémon ID</title>
-    <!-- Carga de Tailwind CSS -->
+    <!-- Carga de Tailwind CSS para diseño moderno y responsive -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Fuente Pixel Art -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -63,12 +63,19 @@
             text-transform: uppercase;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             background-color: #555;
             transform: translateY(-2px);
         }
+        
+        .btn:disabled {
+            background-color: #777;
+            border-color: #999;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
 
-        .btn:active {
+        .btn:active:not(:disabled) {
             transform: translateY(0);
         }
 
@@ -172,6 +179,7 @@
     </div>
 
     <script>
+        // Constantes del rango de IDs de Pokémon
         const MIN_ID = 1;
         const MAX_ID = 1025;
         
@@ -193,18 +201,18 @@
          * @param {HTMLElement} container - El contenedor donde se renderizará el QR.
          */
         function generateQrCode(id, container) {
-            // Limpiar el contenedor antes de generar
+            // Limpiar el contenedor antes de generar un nuevo QR
             container.innerHTML = ''; 
             
-            const qr = new QRCode(container, {
-                text: String(id),
+            // Crea una instancia de QRCode
+            new QRCode(container, {
+                text: String(id), // El contenido del QR es el ID del Pokémon
                 width: 100,
                 height: 100,
                 colorDark: "#000000",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                correctLevel: QRCode.CorrectLevel.H // Alto nivel de corrección de errores
             });
-            return qr;
         }
 
         /**
@@ -213,7 +221,7 @@
         generateSingleBtn.addEventListener('click', () => {
             const id = parseInt(inputNumber.value);
             
-            // Validar
+            // Validar si el ID está dentro del rango permitido
             if (isNaN(id) || id < MIN_ID || id > MAX_ID) {
                 statusMessage.textContent = '❌ ID no válido. Debe ser entre 1 y 1025.';
                 singleQrContainer.style.display = 'none';
@@ -225,17 +233,18 @@
             // Mostrar QR individual
             singleQrContainer.style.display = 'flex';
             generateQrCode(id, singleQrCode);
-            singleQrLabel.textContent = ID: ${id};
+            singleQrLabel.textContent = `ID: ${id}`;
             
-            // Mostrar también en el visor principal
+            // Mostrar también en el visor principal (reemplazando lo que haya)
             qrDisplay.innerHTML = '';
             const item = document.createElement('div');
             item.className = 'qr-item';
             
+            // El contenedor del QR es el propio item
             generateQrCode(id, item);
 
             const p = document.createElement('p');
-            p.textContent = ID #${id};
+            p.textContent = `ID #${id}`;
             item.appendChild(p);
             
             qrDisplay.appendChild(item);
@@ -243,9 +252,10 @@
 
         /**
          * Maneja la generación de todos los códigos QR (1-1025).
+         * Utiliza setTimeout(0) para evitar que el navegador se bloquee.
          */
         generateAllBtn.addEventListener('click', () => {
-            // Deshabilitar botones para prevenir doble clic
+            // Deshabilitar botones e iniciar estado de carga
             generateAllBtn.disabled = true;
             generateSingleBtn.disabled = true;
             downloadBtn.disabled = true;
@@ -254,46 +264,42 @@
             loading.classList.remove('hidden');
             statusMessage.textContent = 'Iniciando generación...';
 
-            // Usamos un pequeño retraso para que el mensaje de carga se muestre
+            // Ejecución asíncrona para permitir la actualización de la UI
             setTimeout(() => {
                 
-                // Limpiar el área de visualización
-                qrDisplay.innerHTML = ''; 
-                
-                // Generación de QR de forma secuencial para no bloquear el navegador
                 let count = 0;
+                
                 const generateNext = () => {
                     const id = count + MIN_ID;
+                    
                     if (id > MAX_ID) {
                         // Terminó la generación
                         loading.classList.add('hidden');
-                        statusMessage.textContent = ✅ Generación completa: ${MAX_ID} códigos generados.;
+                        statusMessage.textContent = `✅ Generación completa: ${MAX_ID} códigos generados.`;
                         downloadBtn.disabled = false;
                         generateAllBtn.disabled = false;
                         generateSingleBtn.disabled = false;
                         return;
                     }
 
-                    // Crear contenedor para el item
+                    // 1. Crear contenedor para el item
                     const item = document.createElement('div');
                     item.className = 'qr-item';
                     
-                    // Generar y renderizar el código QR
-                    const qrContainer = document.createElement('div');
-                    generateQrCode(id, qrContainer);
-                    item.appendChild(qrContainer);
+                    // 2. Generar y renderizar el código QR directamente en el item
+                    // Nota: generateQrCode crea un <div> dentro del 'item'.
+                    generateQrCode(id, item);
 
                     const p = document.createElement('p');
-                    p.textContent = ID #${id};
+                    p.textContent = `ID #${id}`;
                     item.appendChild(p);
                     
                     qrDisplay.appendChild(item);
                     
-                    statusMessage.textContent = Generando ID: ${id} de ${MAX_ID}...;
+                    statusMessage.textContent = `Generando ID: ${id} de ${MAX_ID}...`;
                     count++;
                     
-                    // Planificar la siguiente generación
-                    // Utilizamos un pequeño retraso para que la UI se actualice
+                    // 3. Planificar la siguiente generación sin bloquear el hilo principal
                     setTimeout(generateNext, 0); 
                 };
 
@@ -306,21 +312,22 @@
          * Simula la descarga del paquete ZIP con todos los códigos QR.
          */
         downloadBtn.addEventListener('click', () => {
-            // NOTA: La generación de archivos ZIP en el navegador con 1025 imágenes
-            // reales es muy intensiva en recursos. Aquí simulamos el proceso.
+            // NOTA: Esta es una simulación de descarga. 
             
             downloadBtn.disabled = true;
             statusMessage.textContent = 'Simulando creación y descarga del ZIP (1025 archivos)...';
 
             setTimeout(() => {
+                // Crear un blob de datos simulado
                 const fakeBlob = new Blob(["Simulación de archivo ZIP de 1025 QRs"], { type: "application/zip" });
                 const url = URL.createObjectURL(fakeBlob);
                 
+                // Crea un enlace de descarga
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = "pokedex_qr_codes_1-1025.zip";
                 document.body.appendChild(a);
-                a.click();
+                a.click(); // Disparar la descarga
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
